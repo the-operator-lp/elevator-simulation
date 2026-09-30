@@ -40,7 +40,7 @@ export interface SimulationSnapshot {
 export const MIN_FLOOR = 1;
 export const MAX_FLOOR = 10;
 export const TICK_MS = 100;
-export const FLOOR_TRAVEL_TICKS = 10;
+export const FLOOR_TRAVEL_TICKS = 5;
 export const DOOR_DWELL_TICKS = 20;
 
 export function isFloor(value: number): boolean {

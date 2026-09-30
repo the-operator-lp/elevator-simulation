@@ -23,21 +23,21 @@ describe('Elevator', () => {
     expect(car.selectDestination(10)).toEqual({ ok: true });
   });
 
-  it('moves exactly one floor in ten ticks and never moves with the door open', () => {
+  it('moves exactly one floor in five ticks and never moves with the door open', () => {
     const car = new Elevator('A', 1);
     car.addPickup({ floor: 1, direction: 'up' });
     car.tick();
     expect(car.selectDestination(2)).toEqual({ ok: true });
     car.closeDoor();
     const moved: number[] = [];
-    for (let tick = 0; tick < 10; tick += 1) {
+    for (let tick = 0; tick < 5; tick += 1) {
       car.tick();
       const state = car.snapshot();
       moved.push(state.floor);
       if (state.nextFloor !== null) expect(state.door).toBe('closed');
     }
-    expect(moved.slice(0, 9)).toEqual(Array<number>(9).fill(1));
-    expect(moved[9]).toBe(2);
+    expect(moved.slice(0, 4)).toEqual(Array<number>(4).fill(1));
+    expect(moved[4]).toBe(2);
   });
 
   it('takes an up pickup while going up and holds a down pickup until after reversal', () => {

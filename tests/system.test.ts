@@ -79,7 +79,7 @@ describe('ElevatorSystem', () => {
     expect(system.snapshot().calls.at(-1)?.assignedTo).toBe('A');
   });
 
-  it('advances all three cars during the same ten ticks', () => {
+  it('advances all three cars during the same five ticks', () => {
     const system = new ElevatorSystem();
     command(system, 'hallCall', 1, 'up');
     command(system, 'hallCall', 2, 'up');
@@ -89,7 +89,7 @@ describe('ElevatorSystem', () => {
       expect(system.execute({ type: 'destination', elevatorId: id, floor })).toEqual({ ok: true });
       system.execute({ type: 'closeDoor', elevatorId: id });
     }
-    for (let tick = 0; tick < 10; tick += 1) system.tick();
+    for (let tick = 0; tick < 5; tick += 1) system.tick();
     expect(system.snapshot().elevators.map((car) => car.floor)).toEqual([2, 3, 9]);
   });
 

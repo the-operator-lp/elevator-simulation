@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Command, SimulationSnapshot } from '../shared/contracts.js';
+import { TICK_MS, type Command, type SimulationSnapshot } from '../shared/contracts.js';
 import { getState, sendCommand } from './api.js';
-
-const POLL_INTERVAL_MS = 200;
 
 export interface SimulationControls {
   state: SimulationSnapshot | null;
@@ -55,7 +53,7 @@ export function useSimulation(): SimulationControls {
         }
       } finally {
         controller = undefined;
-        if (mounted) timer = setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);
+        if (mounted) timer = setTimeout(() => { void poll(); }, TICK_MS);
       }
     };
 

@@ -40,7 +40,7 @@ Use the platform sans stack Inter, ui-sans-serif, system-ui, sans-serif; do not 
 
 Spacing uses a 4px base scale with compact half steps: `--space-0-5` through `--space-8` cover 2–32px. Component spacing uses these tokens rather than local literals. `--radius-*`, `--border-width*`, `--height-*`, `--size-*`, and `--layout-*` tokens hold shape, control, marker, and column geometry.
 
-The desktop shell is at most 1280px wide. The main layout places the 10×3 building grid beside a 320px stack of elevator control panels. Floor order is 10 down to 1. At 980px and below, panels move below the building; at 640px and below, panels stack vertically. At 375px, the three shafts remain readable and controls wrap without horizontal page scrolling.
+The desktop shell is at most 1280px wide. The main layout places the 10×3 building grid beside a 320px stack of elevator control panels; at desktop widths, both panes share a height and the ten floor rows expand evenly while remaining at least 45px high. Floor order is 10 down to 1. At 980px and below, panels move below the building; at 640px and below, panels stack vertically. At 375px, the three shafts remain readable and controls wrap without horizontal page scrolling.
 
 ## 5. Components
 
@@ -55,11 +55,11 @@ The desktop shell is at most 1280px wide. The main layout places the 10×3 build
 
 ### FloorRow
 
-- Structure: semantic list item with floor number, valid shared hall-call buttons, three shaft cells, car marker, and any assigned-call label.
+- Structure: semantic list item with floor number, valid shared hall-call buttons, three shaft cells, and car marker.
 - Variants: idle, queued request, one or more cars passing.
 - Spacing: use the shared spacing tokens for row padding and control gaps.
 - States: normal, queued, disabled during connection loss, boundary direction omitted.
-- Accessibility: floor number labels the list item; buttons name both floor and direction; car status includes ID, floor, and direction in the adjacent panel.
+- Accessibility: floor number labels the list item; buttons name the floor and direction and expose active state through `aria-pressed`; car status includes ID, floor, and direction in the adjacent panel.
 - Motion: the car marker follows server progress; reduced motion disables interpolation.
 
 ### ElevatorPanel

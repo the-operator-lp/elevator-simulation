@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../client/App.js';
-import type { Command, ElevatorSnapshot, SimulationSnapshot } from '../shared/contracts.js';
+import { TICK_MS, type Command, type ElevatorSnapshot, type SimulationSnapshot } from '../shared/contracts.js';
 
 function car(id: 'A' | 'B' | 'C', floor: number): ElevatorSnapshot {
   return {
@@ -60,6 +60,10 @@ describe('elevator controls', () => {
     installFetch(async () => json(state()));
     render(<App />);
     await screen.findByRole('button', { name: 'Floor 1 up' });
+    expect(screen.queryByText('OFFICE BUILDING · LIVE SIMULATION')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Elevator Simulator' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Three independent cars. Ten floors. Shared calls and passenger controls.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Connected')).not.toBeInTheDocument();
     for (let floor = 1; floor <= 10; floor += 1) {
       expect(screen.getByRole('listitem', { name: `Floor ${floor}` })).toBeInTheDocument();
     }
@@ -68,7 +72,22 @@ describe('elevator controls', () => {
     expect(screen.queryByRole('button', { name: 'Floor 10 up' })).not.toBeInTheDocument();
   });
 
-  it('sends the shared hall call and displays its assigned elevator', async () => {
+  it('polls state once per simulation tick', async () => {
+    vi.useFakeTimers();
+    let gets = 0;
+    installFetch(async () => { gets += 1; return json(state(gets)); });
+    render(<App />);
+    await flush();
+    expect(gets).toBe(1);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(TICK_MS - 1); });
+    expect(gets).toBe(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    await flush();
+    expect(gets).toBe(2);
+  });
+
+  it('sends the shared hall call without adding assignment text to its button', async () => {
     let sent: Command | undefined;
     const updated = {
       ...state(2),
@@ -84,7 +103,11 @@ describe('elevator controls', () => {
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: 'Floor 5 up' }));
     await waitFor(() => expect(sent).toEqual({ type: 'hallCall', floor: 5, direction: 'up' }));
-    expect(await screen.findByText('Assigned to Elevator B')).toBeInTheDocument();
+    const assignedCall = await screen.findByRole('button', { name: 'Floor 5 up' });
+    expect(assignedCall).toHaveAccessibleName('Floor 5 up');
+    expect(assignedCall).toHaveAttribute('aria-pressed', 'true');
+    expect(assignedCall).toHaveTextContent('↑up');
+    expect(assignedCall).not.toHaveAttribute('title');
   });
 
   it('enables destination selection only with open doors and sends the selected floor', async () => {
@@ -153,10 +176,10 @@ describe('elevator controls', () => {
     await flush();
     expect(posts).toBe(1);
     expect(screen.getByRole('button', { name: 'Floor 5 up' })).toBeDisabled();
-    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(TICK_MS); });
     await flush();
     expect(screen.getByRole('button', { name: 'Floor 5 up' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent(/connection lost/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/connection lost/i);
     expect(posts).toBe(1);
   });
 
@@ -172,14 +195,14 @@ describe('elevator controls', () => {
     await flush();
     expect(screen.getByRole('button', { name: 'Floor 5 up' })).toBeEnabled();
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(TICK_MS); });
     await flush();
     expect(screen.getByRole('button', { name: 'Floor 5 up' })).toBeDisabled();
     expect(screen.getByRole('main')).toHaveAttribute('data-revision', '1');
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(TICK_MS); });
     await flush();
-    expect(screen.getByRole('status')).toHaveTextContent('Connected');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Floor 5 up' })).toBeEnabled();
     expect(screen.getByRole('main')).toHaveAttribute('data-revision', '3');
   });
@@ -241,6 +264,7 @@ describe('elevator controls', () => {
     await act(async () => { releaseOldPoll?.(json(state(11))); await Promise.resolve(); });
     await flush();
     expect(screen.getByRole('main')).toHaveAttribute('data-revision', '0');
-    expect(screen.getByText('instance-two')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Server instance|Snapshot revision/)).not.toBeInTheDocument();
   });
 });

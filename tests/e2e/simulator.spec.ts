@@ -182,16 +182,28 @@ test('deduplicates repeated calls, moves all three cars concurrently, and preser
   await page.getByRole('button', { name: 'Elevator A go to Floor 10' }).click();
   await page.getByRole('button', { name: 'Elevator A close door' }).click();
 
+  await callFloor(page, 2, 'up');
+  await expect(page.getByRole('group', { name: 'Elevator B status' })).toContainText('Doors open');
+  await page.getByRole('button', { name: 'Elevator B go to Floor 8' }).click();
+  await page.getByRole('button', { name: 'Elevator B close door' }).click();
+
+  await callFloor(page, 10, 'down');
+  await expect(page.getByRole('group', { name: 'Elevator C status' })).toContainText('Doors open');
+  await page.getByRole('button', { name: 'Elevator C go to Floor 9' }).click();
+  await page.getByRole('button', { name: 'Elevator C go to Floor 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Elevator C close door' }).click();
+
+  await expect.poll(async () => {
+    const state = await readState(page);
+    return state.elevators.filter((car) => car.nextFloor !== null).length;
+  }).toBe(3);
+
   await callFloor(page, 8, 'down', 3);
   await callFloor(page, 3, 'up');
   await expect.poll(async () => {
     const state = await readState(page);
     return state.calls.filter((call) => call.floor === 8 && call.direction === 'down').length;
   }).toBe(1);
-  await expect.poll(async () => {
-    const state = await readState(page);
-    return state.elevators.filter((car) => car.nextFloor !== null).length;
-  }).toBe(3);
 
   const beforeRefresh = await readState(page);
   const instanceId = beforeRefresh.instanceId;
@@ -204,6 +216,68 @@ test('deduplicates repeated calls, moves all three cars concurrently, and preser
   expect(afterRefresh.calls.filter((call) => call.floor === 8 && call.direction === 'down')).toHaveLength(1);
 });
 
+test('keeps an assigned-call row at a fixed height on mobile', async ({ page, simulator }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(simulator.baseUrl);
+  await expect(page.getByRole('button', { name: 'Floor 1 up' })).toBeVisible();
+  const floor5 = page.getByRole('listitem', { name: 'Floor 5' });
+  const floor5Height = await floor5.evaluate((row) => row.getBoundingClientRect().height);
+
+  await callFloor(page, 2, 'up');
+  await expect(page.getByRole('group', { name: 'Elevator B status' })).toContainText('Doors open');
+  await page.getByRole('button', { name: 'Elevator B hold door' }).click();
+  await callFloor(page, 10, 'down');
+  await expect(page.getByRole('group', { name: 'Elevator C status' })).toContainText('Doors open');
+  await page.getByRole('button', { name: 'Elevator C hold door' }).click();
+  await callFloor(page, 5, 'up');
+  await expect.poll(async () => {
+    const state = await readState(page);
+    return state.calls.find((call) => call.floor === 5 && call.direction === 'up')?.assignedTo;
+  }).toBe('A');
+  await callFloor(page, 5, 'down');
+
+  const upCall = page.getByRole('button', { name: 'Floor 5 up' });
+  const downCall = page.getByRole('button', { name: 'Floor 5 down' });
+  await expect(upCall).toHaveAttribute('aria-pressed', 'true');
+  await expect(downCall).toHaveAttribute('aria-pressed', 'true');
+  await expect(upCall).toHaveText('↑up');
+  await expect(downCall).toHaveText('↓down');
+  await expect(upCall).not.toHaveAttribute('title', /.+/);
+  await expect(downCall).not.toHaveAttribute('title', /.+/);
+  const activeBackground = await upCall.evaluate((button) => getComputedStyle(button).backgroundColor);
+  const idleBackground = await page.getByRole('button', { name: 'Floor 6 up' }).evaluate((button) => getComputedStyle(button).backgroundColor);
+  expect(activeBackground).not.toBe(idleBackground);
+  await expect.poll(async () => floor5.evaluate((row) => row.getBoundingClientRect().height)).toBe(floor5Height);
+});
+
+test('matches building and elevator pane heights on desktop and stacks them on tablet', async ({ page, simulator }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(simulator.baseUrl);
+  await expect(page.locator('.building-panel')).toBeVisible();
+  const [buildingHeight, elevatorHeight] = await Promise.all([
+    page.locator('.building-panel').evaluate((pane) => pane.getBoundingClientRect().height),
+    page.locator('.elevator-panels').evaluate((pane) => pane.getBoundingClientRect().height),
+  ]);
+  expect(Math.abs(buildingHeight - elevatorHeight)).toBeLessThan(1);
+
+  await page.setViewportSize({ width: 768, height: 900 });
+  const [buildingBottom, elevatorsTop] = await Promise.all([
+    page.locator('.building-panel').evaluate((pane) => pane.getBoundingClientRect().bottom),
+    page.locator('.elevator-panels').evaluate((pane) => pane.getBoundingClientRect().top),
+  ]);
+  expect(buildingBottom).toBeLessThan(elevatorsTop);
+});
+
+test('animates car movement continuously between simulation updates', async ({ page, simulator }) => {
+  await page.goto(simulator.baseUrl);
+  const marker = page.locator('.shaft-track').nth(1).locator('.car-marker');
+  await expect(marker).toBeVisible();
+  await expect.poll(() => marker.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return `${style.transitionProperty}|${style.transitionDuration}|${style.transitionTimingFunction}`;
+  })).toBe('top|0.1s|linear');
+});
+
 test('reports an offline server, then reconnects to a fresh in-memory instance', async ({ page, simulator }) => {
   await page.goto(simulator.baseUrl);
   await expect(page.getByRole('button', { name: 'Floor 5 up' })).toBeVisible();
@@ -212,7 +286,7 @@ test('reports an offline server, then reconnects to a fresh in-memory instance',
   await expect.poll(async () => (await readState(page)).calls.some((call) => call.floor === 5 && call.direction === 'up')).toBe(true);
   await simulator.stop();
 
-  await expect(page.getByRole('status')).toContainText(/connection lost/i);
+  await expect(page.getByRole('alert')).toContainText(/connection lost/i);
   await expect(page.getByRole('button', { name: 'Floor 5 up' })).toBeDisabled();
   const retainedRevision = await page.getByRole('main').getAttribute('data-revision');
   expect(retainedRevision).not.toBeNull();
@@ -220,7 +294,7 @@ test('reports an offline server, then reconnects to a fresh in-memory instance',
   await expect(page.getByRole('main')).toHaveAttribute('data-revision', retainedRevision ?? '');
 
   await simulator.start();
-  await expect(page.getByRole('status')).toContainText('Connected', { timeout: 10_000 });
+  await expect(page.getByRole('alert')).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByRole('button', { name: 'Floor 5 up' })).toBeEnabled();
   const restartedState = await readState(page);
   expect(restartedState.instanceId).not.toBe(firstState.instanceId);

@@ -49,18 +49,6 @@ export function Building({ state, disabled, onCommand }: BuildingProps) {
                       <HallButton floor={floor} direction="up" active={floorCalls.some((call) => call.direction === 'up')} disabled={disabled} onCommand={onCommand} />
                     )}
                   </div>
-                  {floorCalls.length > 0 && (
-                    <div className="call-assignments">
-                      {floorCalls.map((call) => (
-                        <span className="call-indicator" data-direction={call.direction} key={`${call.floor}-${call.direction}`}>
-                          {call.direction === 'up' ? '↑' : '↓'} {call.direction === 'up' ? 'Up call' : 'Down call'} ·{' '}
-                          <span className="call-assignment-label">{call.assignedTo
-                            ? `Assigned to Elevator ${call.assignedTo}`
-                            : 'Queued'}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 {IDS.map((id) => <div className="shaft-cell" key={id} aria-hidden="true" />)}
               </li>
