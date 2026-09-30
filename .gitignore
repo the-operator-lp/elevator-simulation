@@ -1,0 +1,10 @@
+.worktrees/
+.superpowers/sdd/
+node_modules/
+dist/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
