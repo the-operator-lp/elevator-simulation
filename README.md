@@ -18,7 +18,7 @@ npm run build
 npm start
 ```
 
-Then open <http://localhost:3001>. Set `PORT` to choose another API/production port, for example `PORT=3100 npm start`. The server validates the port range.
+Then open <http://localhost:3002>. `npm start` defaults to port 3002 so it can run alongside the development API on 3001. Set `PORT` to choose another production port, for example `PORT=3100 npm start`. The server validates the port range.
 
 ## Verify it
 
@@ -44,7 +44,7 @@ There is no configured lint script. Failed Playwright runs retain a screenshot a
 `POST /api/commands` accepts one JSON command. For example, request an upward pickup on floor 5:
 
 ```sh
-curl -X POST http://localhost:3001/api/commands \
+curl -X POST http://localhost:3002/api/commands \
   -H 'Content-Type: application/json' \
   -d '{"type":"hallCall","floor":5,"direction":"up"}'
 ```

@@ -1,6 +1,6 @@
 # 45-minute interview walkthrough
 
-Keep the running application at <http://localhost:3001> and the source tree open. A production build gives the interviewer the same static UI and API process used by the browser acceptance suite.
+Keep the running application at <http://localhost:3002> and the source tree open. A production build gives the interviewer the same static UI and API process used by the browser acceptance suite.
 
 | Time | Topic | Talking points |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ npm run build
 npm start
 ```
 
-Open <http://localhost:3001> in a browser. To isolate the floor-5 direction example, hold the two cars that would otherwise mask A's route:
+Open <http://localhost:3002> in a browser. To isolate the floor-5 direction example, hold the two cars that would otherwise mask A's route:
 
 1. Click **Floor 2 up**. When Elevator B opens, press **Hold door**.
 2. Click **Floor 10 down**. When Elevator C opens, press **Hold door**.

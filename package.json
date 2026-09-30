@@ -10,7 +10,7 @@
     "dev": "concurrently -k \"tsx watch server/main.ts\" \"vite --host 0.0.0.0\"",
     "build": "npm run build:server && vite build",
     "build:server": "tsc -p tsconfig.server.json",
-    "start": "node dist/server/server/main.js",
+    "start": "node scripts/start.mjs",
     "test": "vitest run --exclude tests/e2e/**",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit"
