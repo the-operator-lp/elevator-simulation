@@ -3,19 +3,11 @@ import { realpath, stat } from 'node:fs/promises';
 import { createServer as createHttpServer, type IncomingMessage, type Server } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  isFloor,
-  isValidHallCall,
-  type Command,
-  type ElevatorId,
-  type HallCall,
-} from '../shared/contracts.js';
+import { SimulationController } from './controllers/simulationController.js';
 import type { ElevatorSystem } from './elevator/ElevatorSystem.js';
+import { renderJson } from './views/jsonView.js';
 
 const BODY_LIMIT = 8 * 1024;
-function isElevatorId(value: unknown): value is ElevatorId {
-  return value === 'A' || value === 'B' || value === 'C';
-}
 const DEFAULT_CLIENT_DIRECTORY = fileURLToPath(new URL('../../client/', import.meta.url));
 const MIME_TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
@@ -36,55 +28,52 @@ class RequestBodyError extends Error {
 
 export function createServer(system: ElevatorSystem, clientDirectory = DEFAULT_CLIENT_DIRECTORY): Server {
   const clientRoot = resolve(clientDirectory);
+  const controller = new SimulationController(system);
   return createHttpServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     let pathname: string;
     try {
       pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
     } catch {
-      sendJson(response, 400, { error: 'Invalid request path.' });
+      renderJson(response, 400, { error: 'Invalid request path.' });
       return;
     }
 
     if (pathname === '/api/state') {
       if (request.method !== 'GET') {
-        sendJson(response, 405, { error: 'Method not allowed.' });
+        renderJson(response, 405, { error: 'Method not allowed.' });
         return;
       }
-      sendJson(response, 200, system.snapshot());
+      const result = controller.getState();
+      renderJson(response, result.status, result.body);
       return;
     }
 
     if (pathname === '/api/commands') {
       if (request.method !== 'POST') {
-        sendJson(response, 405, { error: 'Method not allowed.' });
+        renderJson(response, 405, { error: 'Method not allowed.' });
         return;
       }
       try {
         const body = await readJson(request);
-        const command = parseCommand(body);
-        if (!command) {
-          sendJson(response, 400, { error: 'Invalid command.' });
-          return;
-        }
-        const result = system.execute(command);
-        sendJson(response, result.ok ? 200 : 400, { result, state: system.snapshot() });
+        const result = controller.executeCommand(body);
+        renderJson(response, result.status, result.body);
       } catch (error) {
         const bodyError = error instanceof RequestBodyError
           ? error
           : new RequestBodyError(400, 'Request body must contain valid JSON.');
-        sendJson(response, bodyError.status, { error: bodyError.message });
+        renderJson(response, bodyError.status, { error: bodyError.message });
       }
       return;
     }
 
     if (pathname === '/api' || pathname.startsWith('/api/')) {
-      sendJson(response, 404, { error: 'API route not found.' });
+      renderJson(response, 404, { error: 'API route not found.' });
       return;
     }
 
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      sendJson(response, 405, { error: 'Method not allowed.' });
+      renderJson(response, 405, { error: 'Method not allowed.' });
       return;
     }
 
@@ -106,39 +95,6 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
   } catch {
     throw new RequestBodyError(400, 'Request body must contain valid JSON.');
   }
-}
-
-function parseCommand(value: unknown): Command | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
-  const body = value as Record<string, unknown>;
-
-  if (body.type === 'hallCall'
-    && typeof body.floor === 'number'
-    && (body.direction === 'up' || body.direction === 'down')) {
-    const call: HallCall = { floor: body.floor, direction: body.direction };
-    return isValidHallCall(call) ? { type: 'hallCall', ...call } : null;
-  }
-
-  if (body.type === 'destination'
-    && isElevatorId(body.elevatorId)
-    && typeof body.floor === 'number'
-    && isFloor(body.floor)) {
-    return { type: 'destination', elevatorId: body.elevatorId, floor: body.floor };
-  }
-
-  if ((body.type === 'holdDoor' || body.type === 'closeDoor')
-    && isElevatorId(body.elevatorId)) {
-    return { type: body.type, elevatorId: body.elevatorId as ElevatorId };
-  }
-  return null;
-}
-
-function sendJson(response: import('node:http').ServerResponse, status: number, value: unknown): void {
-  response.writeHead(status, {
-    'Cache-Control': 'no-store',
-    'Content-Type': 'application/json; charset=utf-8',
-  });
-  response.end(JSON.stringify(value));
 }
 
 async function serveClient(

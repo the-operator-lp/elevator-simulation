@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../client/App.js';
+import { getState } from '../client/services/simulationApi.js';
 import { TICK_MS, type Command, type ElevatorSnapshot, type SimulationSnapshot } from '../shared/contracts.js';
 
 function car(id: 'A' | 'B' | 'C', floor: number): ElevatorSnapshot {
@@ -56,6 +57,13 @@ afterEach(() => {
 });
 
 describe('elevator controls', () => {
+  it('returns a valid snapshot from the simulation state service', async () => {
+    const expected = state();
+    installFetch(async () => json(expected));
+
+    await expect(getState()).resolves.toEqual(expected);
+  });
+
   it('renders ten floors, three cars, and only valid boundary call buttons', async () => {
     installFetch(async () => json(state()));
     render(<App />);

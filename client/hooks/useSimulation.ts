@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TICK_MS, type Command, type SimulationSnapshot } from '../shared/contracts.js';
-import { getState, sendCommand } from './api.js';
+import { TICK_MS, type Command, type SimulationSnapshot } from '../../shared/contracts.js';
+import { getState, sendCommand } from '../services/simulationApi.js';
 
 export interface SimulationControls {
   state: SimulationSnapshot | null;

@@ -1,6 +1,6 @@
 import { Building } from './components/Building.js';
 import { ElevatorPanel } from './components/ElevatorPanel.js';
-import { useSimulation } from './useSimulation.js';
+import { useSimulation } from './hooks/useSimulation.js';
 import './styles.css';
 
 export function App() {

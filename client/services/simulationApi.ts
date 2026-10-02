@@ -6,7 +6,7 @@ import {
   type ElevatorId,
   type ElevatorSnapshot,
   type SimulationSnapshot,
-} from '../shared/contracts.js';
+} from '../../shared/contracts.js';
 
 const ELEVATOR_IDS: readonly ElevatorId[] = ['A', 'B', 'C'];
 
